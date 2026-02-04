@@ -52,6 +52,14 @@
       @close="closeOrderSearch"
       @select="onOrderSelected"
     />
+    
+    <!-- 商品検索モーダル -->
+    <ProductSearchModal
+      :isOpen="isProductSearchOpen"
+      :products="props.products"
+      @close="closeProductSearch"
+      @select="onProductSelected"
+    />
 
     <!-- 明細セクション -->
     <div class="detail-section">
@@ -65,7 +73,8 @@
           <thead>
             <tr>
               <th style="width: 50px">No.</th>
-              <th style="width: 300px">商品 <span class="required">*</span></th>
+              <th style="width: 150px">商品コード <span class="required">*</span></th>
+              <th style="width: 250px">商品名</th>
               <th style="width: 120px">個数 <span class="required">*</span></th>
               <th style="width: 150px">単価 <span class="required">*</span></th>
               <th style="width: 150px">金額</th>
@@ -76,11 +85,30 @@
             <tr v-for="(row, index) in salesDetails" :key="row.id">
               <td class="text-center">{{ index + 1 }}</td>
               <td>
-                <Autocomplete
-                  v-model="row.product"
-                  :items="products"
-                  placeholder="商品を選択"
-                  @update:modelValue="onProductChange(index)"
+                <div class="product-code-group">
+                  <input
+                    type="text"
+                    v-model="row.productCode"
+                    placeholder="商品コード"
+                    class="input-code"
+                    @blur="onProductCodeInput(index)"
+                  />
+                  <button
+                    @click="openProductSearch(index)"
+                    class="btn-product-search"
+                    title="商品検索"
+                  >
+                    🔍
+                  </button>
+                </div>
+              </td>
+              <td>
+                <input
+                  type="text"
+                  v-model="row.productName"
+                  readonly
+                  class="input-readonly"
+                  placeholder="商品名"
                 />
               </td>
               <td>
@@ -147,6 +175,7 @@
 import { ref, computed } from 'vue'
 import Autocomplete from './Autocomplete.vue'
 import OrderSearchModal from './OrderSearchModal.vue'
+import ProductSearchModal from './ProductSearchModal.vue'
 
 // Propsを追加
 const props = defineProps({
@@ -166,6 +195,8 @@ const props = defineProps({
 
 // モーダルの表示状態
 const isOrderSearchOpen = ref(false)
+const isProductSearchOpen = ref(false)
+const selectedDetailIndex = ref(null) // 商品検索中の明細行インデックス
 
 // ヘッダー情報
 const salesHeader = ref({
@@ -180,7 +211,9 @@ let detailIdCounter = 1
 const salesDetails = ref([
   {
     id: detailIdCounter++,
-    product: null,
+    productCode: '',
+    productName: '',
+    product: null, // 商品マスタのオブジェクト（内部管理用）
     quantity: 0,
     unitPrice: 0,
     amount: 0
@@ -194,6 +227,8 @@ const salesDetails = ref([
 const addDetailRow = () => {
   salesDetails.value.push({
     id: detailIdCounter++,
+    productCode: '',
+    productName: '',
     product: null,
     quantity: 0,
     unitPrice: 0,
@@ -208,7 +243,63 @@ const deleteDetailRow = (index) => {
   }
 }
 
-// 商品選択時の処理
+// 商品検索モーダルを開く
+const openProductSearch = (index) => {
+  selectedDetailIndex.value = index
+  isProductSearchOpen.value = true
+}
+
+// 商品検索モーダルを閉じる
+const closeProductSearch = () => {
+  isProductSearchOpen.value = false
+  selectedDetailIndex.value = null
+}
+
+// 商品選択時の処理（モーダルから）
+const onProductSelected = (product) => {
+  if (selectedDetailIndex.value !== null) {
+    const row = salesDetails.value[selectedDetailIndex.value]
+    row.productCode = product.code
+    row.productName = product.name
+    row.product = product
+    row.unitPrice = product.price
+    calculateRowAmount(selectedDetailIndex.value)
+  }
+}
+
+// 商品コード直接入力時の処理
+const onProductCodeInput = (index) => {
+  const row = salesDetails.value[index]
+  const productCode = row.productCode.trim()
+  
+  if (!productCode) {
+    row.productName = ''
+    row.product = null
+    row.unitPrice = 0
+    calculateRowAmount(index)
+    return
+  }
+  
+  // 商品マスタから商品を検索
+  const product = props.products.find(
+    p => p.code.toLowerCase() === productCode.toLowerCase()
+  )
+  
+  if (product) {
+    row.productName = product.name
+    row.product = product
+    row.unitPrice = product.price
+    calculateRowAmount(index)
+  } else {
+    // 商品が見つからない場合
+    row.productName = '（商品コード不正）'
+    row.product = null
+    row.unitPrice = 0
+    calculateRowAmount(index)
+  }
+}
+
+// 商品選択時の処理（旧Autocomplete用 - 削除予定だが受注連携で使用）
 const onProductChange = (index) => {
   const row = salesDetails.value[index]
   if (row.product && row.product.price) {
@@ -286,6 +377,8 @@ const resetForm = () => {
     salesDetails.value = [
       {
         id: detailIdCounter++,
+        productCode: '',
+        productName: '',
         product: null,
         quantity: 0,
         unitPrice: 0,
@@ -314,7 +407,7 @@ const submitForm = () => {
   // 明細のバリデーション
   for (let i = 0; i < salesDetails.value.length; i++) {
     const row = salesDetails.value[i]
-    if (!row.product) {
+    if (!row.productCode || !row.product) {
       alert(`明細${i + 1}行目: 商品を選択してください。`)
       return
     }
@@ -337,7 +430,8 @@ const submitForm = () => {
       staff: salesHeader.value.staff.name
     },
     details: salesDetails.value.map(row => ({
-      product: row.product.name,
+      productCode: row.productCode,
+      productName: row.productName,
       quantity: row.quantity,
       unitPrice: row.unitPrice,
       amount: row.amount
@@ -362,6 +456,8 @@ const loadOrderData = (order) => {
   
   salesDetails.value = order.details.map(detail => ({
     id: detailIdCounter++,
+    productCode: detail.product.code,
+    productName: detail.product.name,
     product: detail.product,
     quantity: detail.quantity,
     unitPrice: detail.unitPrice,
@@ -545,6 +641,53 @@ h3 {
   text-align: right;
   font-weight: 600;
   color: #333;
+}
+
+.product-code-group {
+  display: flex;
+  gap: 5px;
+}
+
+.input-code {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+}
+
+.input-code:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.input-readonly {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #f9f9f9;
+  color: #666;
+  cursor: default;
+}
+
+.btn-product-search {
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+  white-space: nowrap;
+  min-width: 40px;
+}
+
+.btn-product-search:hover {
+  background-color: #1976D2;
 }
 
 .input-number {
