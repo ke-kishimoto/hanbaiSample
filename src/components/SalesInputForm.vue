@@ -8,12 +8,17 @@
       <div class="header-row-1">
         <div class="form-group">
           <label>売上番号</label>
-          <input
-            type="text"
-            v-model="salesHeader.salesNo"
-            readonly
-            class="input-readonly"
-          />
+          <div class="sales-no-input-group">
+            <input
+              type="text"
+              v-model="salesHeader.salesNo"
+              readonly
+              class="input-readonly"
+            />
+            <button @click="openSalesSearch" class="btn-search-small">
+              <span>🔍</span>
+            </button>
+          </div>
         </div>
         
         <div class="form-group">
@@ -127,6 +132,14 @@
       :products="props.products"
       @close="closeOrderSearch"
       @select="onOrderSelected"
+    />
+    
+    <!-- 売上検索モーダル -->
+    <SalesSearchModal
+      :isOpen="isSalesSearchOpen"
+      :salesList="salesList"
+      @close="closeSalesSearch"
+      @select="onSalesSelected"
     />
     
     <!-- 商品検索モーダル -->
@@ -253,6 +266,7 @@ import OrderSearchModal from './OrderSearchModal.vue'
 import ProductSearchModal from './ProductSearchModal.vue'
 import CustomerSearchModal from './CustomerSearchModal.vue'
 import StaffSearchModal from './StaffSearchModal.vue'
+import SalesSearchModal from './SalesSearchModal.vue'
 
 // Propsを追加
 const props = defineProps({
@@ -275,6 +289,7 @@ const isOrderSearchOpen = ref(false)
 const isProductSearchOpen = ref(false)
 const isCustomerSearchOpen = ref(false)
 const isStaffSearchOpen = ref(false)
+const isSalesSearchOpen = ref(false)
 const selectedDetailIndex = ref(null) // 商品検索中の明細行インデックス
 
 // ヘッダー情報
@@ -311,6 +326,100 @@ const salesDetails = ref([
     quantity: 0,
     unitPrice: 0,
     amount: 0
+  }
+])
+
+// サンプル売上データ
+const salesList = ref([
+  {
+    salesNo: 'UR-20260130-0001',
+    date: '2026-01-30',
+    orderNo: 'OR-2026-001',
+    customerCode: 'C001',
+    customerName: '株式会社山田商事',
+    customer: props.customers.find(c => c.code === 'C001'),
+    staffCode: 'S001',
+    staffName: '田中太郎',
+    staff: props.staffList.find(s => s.code === 'S001'),
+    details: [
+      { id: 1, productCode: 'P001', productName: 'ノートPC', product: props.products.find(p => p.code === 'P001'), quantity: 5, unitPrice: 120000, amount: 600000 },
+      { id: 2, productCode: 'P002', productName: 'デスクトップPC', product: props.products.find(p => p.code === 'P002'), quantity: 3, unitPrice: 150000, amount: 450000 }
+    ],
+    subtotal: 1050000,
+    tax: 105000,
+    grandTotal: 1155000
+  },
+  {
+    salesNo: 'UR-20260131-0002',
+    date: '2026-01-31',
+    orderNo: 'OR-2026-003',
+    customerCode: 'C002',
+    customerName: '鈴木物産株式会社',
+    customer: props.customers.find(c => c.code === 'C002'),
+    staffCode: 'S002',
+    staffName: '佐藤花子',
+    staff: props.staffList.find(s => s.code === 'S002'),
+    details: [
+      { id: 1, productCode: 'P003', productName: 'プリンター', product: props.products.find(p => p.code === 'P003'), quantity: 2, unitPrice: 35000, amount: 70000 },
+      { id: 2, productCode: 'P004', productName: 'モニター', product: props.products.find(p => p.code === 'P004'), quantity: 10, unitPrice: 25000, amount: 250000 }
+    ],
+    subtotal: 320000,
+    tax: 32000,
+    grandTotal: 352000
+  },
+  {
+    salesNo: 'UR-20260201-0003',
+    date: '2026-02-01',
+    orderNo: '',
+    customerCode: 'C003',
+    customerName: '佐藤商店',
+    customer: props.customers.find(c => c.code === 'C003'),
+    staffCode: 'S003',
+    staffName: '鈴木次郎',
+    staff: props.staffList.find(s => s.code === 'S003'),
+    details: [
+      { id: 1, productCode: 'P005', productName: 'マウス', product: props.products.find(p => p.code === 'P005'), quantity: 20, unitPrice: 2000, amount: 40000 },
+      { id: 2, productCode: 'P006', productName: 'キーボード', product: props.products.find(p => p.code === 'P006'), quantity: 15, unitPrice: 5000, amount: 75000 }
+    ],
+    subtotal: 115000,
+    tax: 11500,
+    grandTotal: 126500
+  },
+  {
+    salesNo: 'UR-20260202-0004',
+    date: '2026-02-02',
+    orderNo: 'OR-2026-007',
+    customerCode: 'C004',
+    customerName: '高橋工業株式会社',
+    customer: props.customers.find(c => c.code === 'C004'),
+    staffCode: 'S004',
+    staffName: '高橋美咲',
+    staff: props.staffList.find(s => s.code === 'S004'),
+    details: [
+      { id: 1, productCode: 'P007', productName: 'USBメモリ', product: props.products.find(p => p.code === 'P007'), quantity: 50, unitPrice: 1500, amount: 75000 },
+      { id: 2, productCode: 'P008', productName: '外付けHDD', product: props.products.find(p => p.code === 'P008'), quantity: 5, unitPrice: 12000, amount: 60000 }
+    ],
+    subtotal: 135000,
+    tax: 13500,
+    grandTotal: 148500
+  },
+  {
+    salesNo: 'UR-20260203-0005',
+    date: '2026-02-03',
+    orderNo: 'OR-2026-009',
+    customerCode: 'C005',
+    customerName: '株式会社田中エンタープライズ',
+    customer: props.customers.find(c => c.code === 'C005'),
+    staffCode: 'S005',
+    staffName: '中村誠',
+    staff: props.staffList.find(s => s.code === 'S005'),
+    details: [
+      { id: 1, productCode: 'P009', productName: 'Webカメラ', product: props.products.find(p => p.code === 'P009'), quantity: 8, unitPrice: 8000, amount: 64000 },
+      { id: 2, productCode: 'P010', productName: 'ヘッドセット', product: props.products.find(p => p.code === 'P010'), quantity: 12, unitPrice: 6000, amount: 72000 }
+    ],
+    subtotal: 136000,
+    tax: 13600,
+    grandTotal: 149600
   }
 ])
 
@@ -436,6 +545,38 @@ const openOrderSearch = () => {
 // 受注検索モーダルを閉じる
 const closeOrderSearch = () => {
   isOrderSearchOpen.value = false
+}
+
+// 売上検索モーダルを開く
+const openSalesSearch = () => {
+  isSalesSearchOpen.value = true
+}
+
+// 売上検索モーダルを閉じる
+const closeSalesSearch = () => {
+  isSalesSearchOpen.value = false
+}
+
+// 売上が選択されたときの処理
+const onSalesSelected = (sales) => {
+  // ヘッダー情報を設定
+  salesHeader.value.salesNo = sales.salesNo
+  salesHeader.value.date = sales.date
+  salesHeader.value.orderNo = sales.orderNo
+  salesHeader.value.customerCode = sales.customerCode
+  salesHeader.value.customerName = sales.customerName
+  salesHeader.value.customer = sales.customer
+  salesHeader.value.staffCode = sales.staffCode
+  salesHeader.value.staffName = sales.staffName
+  salesHeader.value.staff = sales.staff
+  
+  // 明細データを設定
+  salesDetails.value = sales.details.map(detail => ({
+    ...detail,
+    id: detailIdCounter++
+  }))
+  
+  isSalesSearchOpen.value = false
 }
 
 // 得意先検索モーダルを開く
@@ -717,6 +858,21 @@ h3 {
 }
 
 .order-no-input-group input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #f5f5f5;
+  color: #666;
+}
+
+.sales-no-input-group {
+  display: flex;
+  gap: 5px;
+}
+
+.sales-no-input-group input {
   flex: 1;
   padding: 10px;
   border: 1px solid #ddd;
