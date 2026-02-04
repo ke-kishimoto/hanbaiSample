@@ -4,7 +4,7 @@
     
     <!-- ヘッダー情報 -->
     <div class="header-section">
-      <!-- 1行目：売上番号、日付、受注番号 -->
+      <!-- 1行目：受注番号、日付、見積番号、受注コピー -->
       <div class="header-row-1">
         <div class="form-group">
           <label>受注番号</label>
@@ -39,6 +39,13 @@
               <span>🔍</span> 見積検索
             </button>
           </div>
+        </div>
+        
+        <div class="form-group">
+          <label>受注コピー</label>
+          <button @click="openOrderCopy" class="btn-copy">
+            <span>📋</span> 受注コピー
+          </button>
         </div>
       </div>
       
@@ -140,6 +147,14 @@
       :orderList="orderList"
       @close="closeOrderSearch"
       @select="onOrderSelected"
+    />
+    
+    <!-- 受注コピーモーダル -->
+    <OrderInputSearchModal
+      :isOpen="isOrderCopyOpen"
+      :orderList="orderList"
+      @close="closeOrderCopy"
+      @select="onOrderCopied"
     />
     
     <!-- 商品検索モーダル -->
@@ -287,6 +302,7 @@ const props = defineProps({
 // モーダルの表示状態
 const isQuotationSearchOpen = ref(false)
 const isOrderSearchOpen = ref(false)
+const isOrderCopyOpen = ref(false) // 受注コピー用
 const isProductSearchOpen = ref(false)
 const isCustomerSearchOpen = ref(false)
 const isStaffSearchOpen = ref(false)
@@ -579,7 +595,7 @@ const closeOrderSearch = () => {
   isOrderSearchOpen.value = false
 }
 
-// 受注が選択されたときの処理
+// 受注が選択されたときの処理（既存受注の修正）
 const onOrderSelected = (order) => {
   // ヘッダー情報を設定
   orderHeader.value.orderNo = order.orderNo
@@ -599,6 +615,39 @@ const onOrderSelected = (order) => {
   }))
   
   isOrderSearchOpen.value = false
+}
+
+// 受注コピーモーダルを開く
+const openOrderCopy = () => {
+  isOrderCopyOpen.value = true
+}
+
+// 受注コピーモーダルを閉じる
+const closeOrderCopy = () => {
+  isOrderCopyOpen.value = false
+}
+
+// 受注コピーが選択されたときの処理（新規受注として作成）
+const onOrderCopied = (order) => {
+  // ヘッダー情報を設定（受注番号は新規生成、日付は今日）
+  orderHeader.value.orderNo = generateOrderNo()
+  orderHeader.value.date = new Date().toISOString().split('T')[0]
+  orderHeader.value.quotationNo = order.quotationNo
+  orderHeader.value.customerCode = order.customerCode
+  orderHeader.value.customerName = order.customerName
+  orderHeader.value.customer = order.customer
+  orderHeader.value.staffCode = order.staffCode
+  orderHeader.value.staffName = order.staffName
+  orderHeader.value.staff = order.staff
+  
+  // 明細データを設定
+  orderDetails.value = order.details.map(detail => ({
+    ...detail,
+    id: detailIdCounter++
+  }))
+  
+  isOrderCopyOpen.value = false
+  alert(`受注番号 ${order.orderNo} をコピーして新しい受注を作成しました。`)
 }
 
 // 得意先検索モーダルを開く
@@ -808,7 +857,7 @@ h3 {
 
 .header-row-1 {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.5fr;
+  grid-template-columns: 1fr 1fr 1.5fr 1fr;
   gap: 20px;
 }
 
@@ -907,6 +956,32 @@ h3 {
 
 .btn-search-small:hover {
   background-color: #1976D2;
+}
+
+.btn-copy {
+  background-color: #FF9800;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.btn-copy:hover {
+  background-color: #F57C00;
+}
+
+.btn-copy span {
+  font-size: 16px;
 }
 
 .form-group {
