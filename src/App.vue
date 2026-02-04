@@ -5,6 +5,12 @@
     <!-- タブナビゲーション -->
     <div class="tab-navigation">
       <button
+        :class="['tab-button', { active: activeTab === 'quotation' }]"
+        @click="activeTab = 'quotation'"
+      >
+        📝 見積入力
+      </button>
+      <button
         :class="['tab-button', { active: activeTab === 'order' }]"
         @click="activeTab = 'order'"
       >
@@ -32,6 +38,13 @@
     
     <!-- タブコンテンツ -->
     <div class="tab-content">
+      <QuotationInputForm 
+        v-if="activeTab === 'quotation'" 
+        ref="quotationFormRef"
+        :customers="customers"
+        :staffList="staffList"
+        :products="products"
+      />
       <OrderInputForm 
         v-if="activeTab === 'order'" 
         ref="orderFormRef"
@@ -66,13 +79,14 @@
 
 <script setup>
 import { ref } from 'vue'
+import QuotationInputForm from './components/QuotationInputForm.vue'
 import OrderInputForm from './components/OrderInputForm.vue'
 import SalesInputForm from './components/SalesInputForm.vue'
 import OrderList from './components/OrderList.vue'
 import InvoiceGenerator from './components/InvoiceGenerator.vue'
 
 // アクティブタブ
-const activeTab = ref('order')
+const activeTab = ref('quotation')
 
 // コンポーネントの参照
 const salesFormRef = ref(null)
