@@ -247,13 +247,22 @@
     <div class="action-buttons">
       <button @click="resetForm" class="btn-secondary">クリア</button>
       <button @click="submitForm" class="btn-primary">登録</button>
+      <button @click="openQuotationPreview" class="btn-preview">📄 見積書発行</button>
     </div>
   </div>
+  
+  <!-- 見積書プレビューモーダル -->
+  <QuotationPreviewModal
+    :isOpen="isQuotationPreviewOpen"
+    :quotationData="quotationPreviewData"
+    @close="closeQuotationPreview"
+  />
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import QuotationInputSearchModal from './QuotationInputSearchModal.vue'
+import QuotationPreviewModal from './QuotationPreviewModal.vue'
 import ProductSearchModal from './ProductSearchModal.vue'
 import CustomerSearchModal from './CustomerSearchModal.vue'
 import StaffSearchModal from './StaffSearchModal.vue'
@@ -280,6 +289,7 @@ const isQuotationCopyOpen = ref(false) // 見積コピー用
 const isProductSearchOpen = ref(false)
 const isCustomerSearchOpen = ref(false)
 const isStaffSearchOpen = ref(false)
+const isQuotationPreviewOpen = ref(false) // 見積書プレビュー用
 const selectedDetailIndex = ref(null) // 商品検索中の明細行インデックス
 
 // ヘッダー情報
@@ -753,6 +763,54 @@ const submitForm = () => {
   console.log('見積データ:', quotationData)
   alert('見積データが登録されました！\n（デモのため実際には保存されません）\n\nコンソールにデータを出力しました。')
 }
+
+// 見積書プレビュー用データの生成
+const quotationPreviewData = computed(() => {
+  return {
+    quotationNo: quotationHeader.value.quotationNo,
+    date: quotationHeader.value.date,
+    customerName: quotationHeader.value.customerName,
+    staffName: quotationHeader.value.staffName,
+    details: quotationDetails.value.map(row => ({
+      productCode: row.productCode,
+      productName: row.productName,
+      quantity: row.quantity,
+      unitPrice: row.unitPrice,
+      amount: row.amount
+    })),
+    subtotal: subtotal.value,
+    tax: tax.value,
+    grandTotal: grandTotal.value
+  }
+})
+
+// 見積書プレビューモーダルを開く
+const openQuotationPreview = () => {
+  // 簡易バリデーション
+  if (!quotationHeader.value.customerCode || !quotationHeader.value.customer) {
+    alert('得意先を選択してください。')
+    return
+  }
+  if (!quotationHeader.value.staffCode || !quotationHeader.value.staff) {
+    alert('担当者を選択してください。')
+    return
+  }
+  
+  // 商品が1つも入力されていないか確認
+  const hasProducts = quotationDetails.value.some(row => row.productCode && row.product)
+  if (!hasProducts) {
+    alert('商品を1つ以上入力してください。')
+    return
+  }
+  
+  isQuotationPreviewOpen.value = true
+}
+
+// 見積書プレビューモーダルを閉じる
+const closeQuotationPreview = () => {
+  isQuotationPreviewOpen.value = false
+}
+
 </script>
 
 <style scoped>
@@ -1148,7 +1206,8 @@ h3 {
 }
 
 .btn-primary,
-.btn-secondary {
+.btn-secondary,
+.btn-preview {
   padding: 12px 30px;
   border: none;
   border-radius: 4px;
@@ -1177,6 +1236,18 @@ h3 {
 .btn-secondary:hover {
   background-color: #757575;
 }
+
+.btn-preview {
+  background-color: #2196F3;
+  color: white;
+}
+
+.btn-preview:hover {
+  background-color: #1976D2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
 </style>
+
 
 
