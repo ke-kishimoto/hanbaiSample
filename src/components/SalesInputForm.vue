@@ -4,44 +4,120 @@
     
     <!-- ヘッダー情報 -->
     <div class="header-section">
-      <div class="form-group order-no-group">
-        <label>受注番号</label>
-        <div class="order-no-input-group">
-          <input 
-            type="text" 
-            v-model="salesHeader.orderNo" 
-            placeholder="受注番号"
+      <!-- 1行目：売上番号、日付、受注番号 -->
+      <div class="header-row-1">
+        <div class="form-group">
+          <label>売上番号</label>
+          <input
+            type="text"
+            v-model="salesHeader.salesNo"
             readonly
+            class="input-readonly"
           />
-          <button @click="openOrderSearch" class="btn-search">
-            <span>🔍</span> 受注検索
-          </button>
+        </div>
+        
+        <div class="form-group">
+          <label>日付 <span class="required">*</span></label>
+          <input type="date" v-model="salesHeader.date" />
+        </div>
+        
+        <div class="form-group">
+          <label>受注番号</label>
+          <div class="order-no-input-group">
+            <input 
+              type="text" 
+              v-model="salesHeader.orderNo" 
+              placeholder="受注番号"
+              readonly
+            />
+            <button @click="openOrderSearch" class="btn-search">
+              <span>🔍</span> 受注検索
+            </button>
+          </div>
         </div>
       </div>
       
-      <div class="form-group">
-        <label>日付 <span class="required">*</span></label>
-        <input type="date" v-model="salesHeader.date" />
-      </div>
-      
-      <div class="form-group">
-        <label>得意先 <span class="required">*</span></label>
-        <Autocomplete
-          v-model="salesHeader.customer"
-          :items="props.customers"
-          placeholder="得意先を選択してください"
-        />
-      </div>
-      
-      <div class="form-group">
-        <label>担当者 <span class="required">*</span></label>
-        <Autocomplete
-          v-model="salesHeader.staff"
-          :items="props.staffList"
-          placeholder="担当者を選択してください"
-        />
+      <!-- 2行目：得意先コード、得意先名、担当者コード、担当者名 -->
+      <div class="header-row-2">
+        <div class="form-group">
+          <label>得意先コード <span class="required">*</span></label>
+          <div class="code-input-group">
+            <input
+              type="text"
+              v-model="salesHeader.customerCode"
+              placeholder="得意先コード"
+              class="input-code"
+              @blur="onCustomerCodeInput"
+            />
+            <button
+              @click="openCustomerSearch"
+              class="btn-search-small"
+              title="得意先検索"
+            >
+              🔍
+            </button>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>得意先名</label>
+          <input
+            type="text"
+            v-model="salesHeader.customerName"
+            readonly
+            class="input-readonly"
+            placeholder="得意先名"
+          />
+        </div>
+        
+        <div class="form-group">
+          <label>担当者コード <span class="required">*</span></label>
+          <div class="code-input-group">
+            <input
+              type="text"
+              v-model="salesHeader.staffCode"
+              placeholder="担当者コード"
+              class="input-code"
+              @blur="onStaffCodeInput"
+            />
+            <button
+              @click="openStaffSearch"
+              class="btn-search-small"
+              title="担当者検索"
+            >
+              🔍
+            </button>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>担当者名</label>
+          <input
+            type="text"
+            v-model="salesHeader.staffName"
+            readonly
+            class="input-readonly"
+            placeholder="担当者名"
+          />
+        </div>
       </div>
     </div>
+    
+    <!-- 得意先検索モーダル -->
+    <CustomerSearchModal
+      :isOpen="isCustomerSearchOpen"
+      :customers="props.customers"
+      @close="closeCustomerSearch"
+      @select="onCustomerSelected"
+    />
+    
+    <!-- 担当者検索モーダル -->
+    <StaffSearchModal
+      :isOpen="isStaffSearchOpen"
+      :staffList="props.staffList"
+      @close="closeStaffSearch"
+      @select="onStaffSelected"
+    />
     
     <!-- 受注検索モーダル -->
     <OrderSearchModal
@@ -173,9 +249,10 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import Autocomplete from './Autocomplete.vue'
 import OrderSearchModal from './OrderSearchModal.vue'
 import ProductSearchModal from './ProductSearchModal.vue'
+import CustomerSearchModal from './CustomerSearchModal.vue'
+import StaffSearchModal from './StaffSearchModal.vue'
 
 // Propsを追加
 const props = defineProps({
@@ -196,15 +273,32 @@ const props = defineProps({
 // モーダルの表示状態
 const isOrderSearchOpen = ref(false)
 const isProductSearchOpen = ref(false)
+const isCustomerSearchOpen = ref(false)
+const isStaffSearchOpen = ref(false)
 const selectedDetailIndex = ref(null) // 商品検索中の明細行インデックス
 
 // ヘッダー情報
 const salesHeader = ref({
-  orderNo: '',
+  salesNo: generateSalesNo(), // 売上番号（自動採番）
   date: new Date().toISOString().split('T')[0],
-  customer: null,
-  staff: null
+  orderNo: '',
+  customerCode: '',
+  customerName: '',
+  customer: null, // 内部管理用
+  staffCode: '',
+  staffName: '',
+  staff: null // 内部管理用
 })
+
+// 売上番号を生成
+function generateSalesNo() {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+  return `UR-${year}${month}${day}-${random}`
+}
 
 // 明細情報
 let detailIdCounter = 1
@@ -344,12 +438,99 @@ const closeOrderSearch = () => {
   isOrderSearchOpen.value = false
 }
 
+// 得意先検索モーダルを開く
+const openCustomerSearch = () => {
+  isCustomerSearchOpen.value = true
+}
+
+// 得意先検索モーダルを閉じる
+const closeCustomerSearch = () => {
+  isCustomerSearchOpen.value = false
+}
+
+// 得意先選択時の処理（モーダルから）
+const onCustomerSelected = (customer) => {
+  salesHeader.value.customerCode = customer.code
+  salesHeader.value.customerName = customer.name
+  salesHeader.value.customer = customer
+}
+
+// 得意先コード直接入力時の処理
+const onCustomerCodeInput = () => {
+  const customerCode = salesHeader.value.customerCode.trim()
+  
+  if (!customerCode) {
+    salesHeader.value.customerName = ''
+    salesHeader.value.customer = null
+    return
+  }
+  
+  // 得意先マスタから検索
+  const customer = props.customers.find(
+    c => c.code.toLowerCase() === customerCode.toLowerCase()
+  )
+  
+  if (customer) {
+    salesHeader.value.customerName = customer.name
+    salesHeader.value.customer = customer
+  } else {
+    salesHeader.value.customerName = '（得意先コード不正）'
+    salesHeader.value.customer = null
+  }
+}
+
+// 担当者検索モーダルを開く
+const openStaffSearch = () => {
+  isStaffSearchOpen.value = true
+}
+
+// 担当者検索モーダルを閉じる
+const closeStaffSearch = () => {
+  isStaffSearchOpen.value = false
+}
+
+// 担当者選択時の処理（モーダルから）
+const onStaffSelected = (staff) => {
+  salesHeader.value.staffCode = staff.code
+  salesHeader.value.staffName = staff.name
+  salesHeader.value.staff = staff
+}
+
+// 担当者コード直接入力時の処理
+const onStaffCodeInput = () => {
+  const staffCode = salesHeader.value.staffCode.trim()
+  
+  if (!staffCode) {
+    salesHeader.value.staffName = ''
+    salesHeader.value.staff = null
+    return
+  }
+  
+  // 担当者マスタから検索
+  const staff = props.staffList.find(
+    s => s.code.toLowerCase() === staffCode.toLowerCase()
+  )
+  
+  if (staff) {
+    salesHeader.value.staffName = staff.name
+    salesHeader.value.staff = staff
+  } else {
+    salesHeader.value.staffName = '（担当者コード不正）'
+    salesHeader.value.staff = null
+  }
+}
+
 // 受注選択時の処理
 const onOrderSelected = (order) => {
   // ヘッダー情報を設定
+  salesHeader.value.salesNo = generateSalesNo() // 新しい売上番号を生成
   salesHeader.value.orderNo = order.orderNo
   salesHeader.value.date = order.orderDate
+  salesHeader.value.customerCode = order.customer.code
+  salesHeader.value.customerName = order.customer.name
   salesHeader.value.customer = order.customer
+  salesHeader.value.staffCode = order.staff.code
+  salesHeader.value.staffName = order.staff.name
   salesHeader.value.staff = order.staff
   
   // 明細をクリアして受注明細をコピー
@@ -369,9 +550,14 @@ const onOrderSelected = (order) => {
 const resetForm = () => {
   if (confirm('入力内容をクリアしてもよろしいですか？')) {
     salesHeader.value = {
-      orderNo: '',
+      salesNo: generateSalesNo(),
       date: new Date().toISOString().split('T')[0],
+      orderNo: '',
+      customerCode: '',
+      customerName: '',
       customer: null,
+      staffCode: '',
+      staffName: '',
       staff: null
     }
     salesDetails.value = [
@@ -395,11 +581,11 @@ const submitForm = () => {
     alert('日付を入力してください。')
     return
   }
-  if (!salesHeader.value.customer) {
+  if (!salesHeader.value.customerCode || !salesHeader.value.customer) {
     alert('得意先を選択してください。')
     return
   }
-  if (!salesHeader.value.staff) {
+  if (!salesHeader.value.staffCode || !salesHeader.value.staff) {
     alert('担当者を選択してください。')
     return
   }
@@ -424,10 +610,13 @@ const submitForm = () => {
   // デモ用：データを表示
   const salesData = {
     header: {
-      orderNo: salesHeader.value.orderNo,
+      salesNo: salesHeader.value.salesNo,
       date: salesHeader.value.date,
-      customer: salesHeader.value.customer.name,
-      staff: salesHeader.value.staff.name
+      orderNo: salesHeader.value.orderNo,
+      customerCode: salesHeader.value.customerCode,
+      customerName: salesHeader.value.customerName,
+      staffCode: salesHeader.value.staffCode,
+      staffName: salesHeader.value.staffName
     },
     details: salesDetails.value.map(row => ({
       productCode: row.productCode,
@@ -449,9 +638,14 @@ const submitForm = () => {
 
 // 受注一覧から受注データを読み込む（外部から呼び出し可能）
 const loadOrderData = (order) => {
-  salesHeader.value.orderNo = order.orderNo
+  salesHeader.value.salesNo = generateSalesNo() // 新しい売上番号を生成
   salesHeader.value.date = order.orderDate
+  salesHeader.value.orderNo = order.orderNo
+  salesHeader.value.customerCode = order.customer.code
+  salesHeader.value.customerName = order.customer.name
   salesHeader.value.customer = order.customer
+  salesHeader.value.staffCode = order.staff.code
+  salesHeader.value.staffName = order.staff.name
   salesHeader.value.staff = order.staff
   
   salesDetails.value = order.details.map(detail => ({
@@ -500,13 +694,21 @@ h3 {
   padding: 20px;
   border-radius: 6px;
   margin-bottom: 30px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 20px;
 }
 
-.order-no-group {
-  grid-column: 1 / -1;
+.header-row-1 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.5fr;
+  gap: 20px;
+}
+
+.header-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr 1.5fr;
+  gap: 20px;
 }
 
 .order-no-input-group {
@@ -546,6 +748,28 @@ h3 {
 
 .btn-search span {
   font-size: 16px;
+}
+
+.code-input-group {
+  display: flex;
+  gap: 5px;
+}
+
+.btn-search-small {
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  padding: 10px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+  white-space: nowrap;
+  min-width: 40px;
+}
+
+.btn-search-small:hover {
+  background-color: #1976D2;
 }
 
 .form-group {
