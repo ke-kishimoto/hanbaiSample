@@ -34,6 +34,12 @@
       >
         📄 請求書発行
       </button>
+      <button
+        :class="['tab-button', { active: activeTab === 'products' }]"
+        @click="activeTab = 'products'"
+      >
+        📦 商品管理
+      </button>
     </div>
     
     <!-- タブコンテンツ -->
@@ -73,6 +79,11 @@
         :staffList="staffList"
         :products="products"
       />
+      <ProductList
+        v-if="activeTab === 'products'"
+        :products="products"
+        @update:products="updateProducts"
+      />
     </div>
   </div>
 </template>
@@ -84,6 +95,7 @@ import OrderInputForm from './components/OrderInputForm.vue'
 import SalesInputForm from './components/SalesInputForm.vue'
 import OrderList from './components/OrderList.vue'
 import InvoiceGenerator from './components/InvoiceGenerator.vue'
+import ProductList from './components/ProductList.vue'
 
 // アクティブタブ
 const activeTab = ref('quotation')
@@ -112,18 +124,23 @@ const staffList = [
   { id: 5, name: '高橋三郎', code: 'S005' }
 ]
 
-const products = [
-  { id: 1, name: 'ノートパソコン Core i5', code: 'P001', price: 98000 },
-  { id: 2, name: 'ノートパソコン Core i7', code: 'P002', price: 128000 },
-  { id: 3, name: 'デスクトップPC', code: 'P003', price: 85000 },
-  { id: 4, name: '液晶ディスプレイ 24インチ', code: 'P004', price: 25000 },
-  { id: 5, name: '液晶ディスプレイ 27インチ', code: 'P005', price: 35000 },
-  { id: 6, name: 'キーボード', code: 'P006', price: 3500 },
-  { id: 7, name: 'マウス', code: 'P007', price: 2000 },
-  { id: 8, name: 'プリンター', code: 'P008', price: 45000 },
-  { id: 9, name: 'スキャナー', code: 'P009', price: 28000 },
-  { id: 10, name: 'Webカメラ', code: 'P010', price: 8000 }
-]
+const products = ref([
+  { id: 1, code: 'P001', name: 'ノートパソコン Core i5', kana: 'ノートパソコンコアアイファイブ', category: 'パソコン', price: 98000, cost: 78000, unit: '台', stock: 15, taxType: '課税', status: '有効', remarks: 'ビジネス向けスタンダードモデル' },
+  { id: 2, code: 'P002', name: 'ノートパソコン Core i7', kana: 'ノートパソコンコアアイセブン', category: 'パソコン', price: 128000, cost: 105000, unit: '台', stock: 10, taxType: '課税', status: '有効', remarks: 'ハイパフォーマンスモデル' },
+  { id: 3, code: 'P003', name: 'デスクトップPC', kana: 'デスクトップピーシー', category: 'パソコン', price: 85000, cost: 68000, unit: '台', stock: 8, taxType: '課税', status: '有効', remarks: '' },
+  { id: 4, code: 'P004', name: '液晶ディスプレイ 24インチ', kana: 'エキショウディスプレイニジュウヨンインチ', category: '周辺機器', price: 25000, cost: 18000, unit: '台', stock: 20, taxType: '課税', status: '有効', remarks: '' },
+  { id: 5, code: 'P005', name: '液晶ディスプレイ 27インチ', kana: 'エキショウディスプレイニジュウナナインチ', category: '周辺機器', price: 35000, cost: 26000, unit: '台', stock: 12, taxType: '課税', status: '有効', remarks: '' },
+  { id: 6, code: 'P006', name: 'キーボード', kana: 'キーボード', category: '周辺機器', price: 3500, cost: 2000, unit: '個', stock: 50, taxType: '課税', status: '有効', remarks: '' },
+  { id: 7, code: 'P007', name: 'マウス', kana: 'マウス', category: '周辺機器', price: 2000, cost: 1200, unit: '個', stock: 60, taxType: '課税', status: '有効', remarks: '' },
+  { id: 8, code: 'P008', name: 'プリンター', kana: 'プリンター', category: '周辺機器', price: 45000, cost: 35000, unit: '台', stock: 7, taxType: '課税', status: '有効', remarks: '複合機タイプ' },
+  { id: 9, code: 'P009', name: 'スキャナー', kana: 'スキャナー', category: '周辺機器', price: 28000, cost: 21000, unit: '台', stock: 5, taxType: '課税', status: '有効', remarks: '' },
+  { id: 10, code: 'P010', name: 'Webカメラ', kana: 'ウェブカメラ', category: '周辺機器', price: 8000, cost: 5000, unit: '個', stock: 25, taxType: '課税', status: '有効', remarks: 'リモート会議用' }
+])
+
+// 商品データ更新
+const updateProducts = (newProducts) => {
+  products.value = newProducts
+}
 
 // 受注一覧から売上作成
 const handleCreateSales = (order) => {
